@@ -80,12 +80,14 @@ public class SearchHandlerActor extends BaseActor {
         if (EsType.user.getTypeName().equalsIgnoreCase(type)) {
           filterObjectType = EsType.user.getTypeName();
           UserUtility.encryptUserSearchFilterQueryData(searchQueryMap);
+
         } else if (EsType.course.getTypeName().equalsIgnoreCase(type)) {
           filterObjectType = EsType.course.getTypeName();
         } else if (EsType.organisation.getTypeName().equalsIgnoreCase(type)) {
           filterObjectType = EsType.organisation.getTypeName();
         }
       }
+      encryptSearchOrFilterData(toLower(searchQueryMap));
       SearchDTO searchDto = Util.createSearchDto(searchQueryMap);
       if (filterObjectType.equalsIgnoreCase(EsType.user.getTypeName())) {
         searchDto.setExcludedFields(Arrays.asList(ProjectUtil.excludes));
@@ -134,6 +136,13 @@ public class SearchHandlerActor extends BaseActor {
       }
     } else {
       onReceiveUnsupportedOperation(request.getOperation());
+    }
+  }
+
+  private void encryptSearchOrFilterData(Map<String,Object>searchQueryMap) throws Exception {
+    Map<String, Object> orFilterMap = (Map) ((Map<String, Object>) searchQueryMap.get(JsonKey.FILTERS)).get(JsonKey.ES_OR_OPERATION);
+    if (MapUtils.isNotEmpty(orFilterMap)) {
+      UserUtility.encryptUserData(orFilterMap);
     }
   }
 
@@ -343,5 +352,18 @@ public class SearchHandlerActor extends BaseActor {
     map.put(JsonKey.PARAMS, params);
     map.put(JsonKey.TELEMETRY_EVENT_TYPE, "SEARCH");
     return map;
+  }
+  public Map<String,Object> toLower(Map<String,Object>filterMap) {
+    Arrays.asList(
+            ProjectUtil.getConfigValue(JsonKey.SUNBIRD_API_REQUEST_LOWER_CASE_FIELDS).split(","))
+            .stream()
+            .forEach(
+                    field -> {
+                      if (StringUtils.isNotBlank((String) filterMap.get(field))) {
+                        filterMap.put(field, ((String) filterMap.get(field)).toLowerCase());
+                      }
+                    });
+
+  return filterMap;
   }
 }
